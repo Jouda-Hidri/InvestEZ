@@ -1,9 +1,8 @@
 # InvestEZ
 
 React + TypeScript client for Alpaca (paper trading).
-Current scope: list tradable assets, and load the last trade price for any of them.
-Semantic search over the asset list exists as a module (`src/rag/`) but no UI
-calls it yet.
+Current scope: search the asset list by meaning, list tradable assets, and load
+the last trade price for any of them.
 
 ## Setup
 
@@ -83,23 +82,29 @@ says what Tesla builds. Richer documents, not a better model, is the fix.
 
 | File                      | Role                                                       |
 | ------------------------- | ---------------------------------------------------------- |
-| `vite.config.ts`          | Dev proxies to Alpaca and Voyage, injects the auth headers  |
-| `src/alpaca.ts`           | `Asset` / `Trade` types, `getAssets()`, `getLatestTrade()`  |
-| `src/App.tsx`             | `App` loads + filters assets; `LastTrade` renders one price |
-| `scripts/build-index.ts`  | Fetch → filter → batch-embed → write the index              |
-| `src/rag/index-format.ts` | Index shape + model constants, shared by script and app     |
-| `src/rag/retrieve.ts`     | `loadIndex()`, `embedQuery()`, `search()`                   |
-| `public/asset-index.json` | Generated vectors (gitignored)                              |
-| `.env`                    | Alpaca and Voyage keys (gitignored)                         |
+| `vite.config.ts`             | Dev proxies to Alpaca and Voyage, injects the auth headers |
+| `src/App.tsx`                | Shell: two sections, each owning its own fetching          |
+| `src/alpaca.ts`              | `Asset` / `Trade` types, `getAssets()`, `getLatestTrade()` |
+| `src/AssetTable.tsx`         | Asset list, substring filter, per-row `LastTrade`          |
+| `scripts/build-index.ts`     | Fetch → filter → batch-embed → write the index             |
+| `src/rag/index-format.ts`    | Index shape + model constants, shared by script and app    |
+| `src/rag/retrieve.ts`        | `loadIndex()`, `embedQuery()`, `search()`                  |
+| `src/rag/SemanticSearch.tsx` | Query box, ranked results with scores                      |
+| `public/asset-index.json`    | Generated vectors (gitignored)                             |
+| `.env`                       | Alpaca and Voyage keys (gitignored)                        |
 
 ## Behaviour
 
-- Fetches active US equities once on mount (~14k rows).
-- Client-side filter on symbol and name; the table renders at most 100 rows.
-- Loading and error states replace the table.
-- **Last trade** column: one request per row, triggered by its *Load* button.
-  Each symbol keeps its own loading / price / failed state; hover a price for
-  its timestamp, hover *failed* for the error.
+**Semantic search** — one Voyage call per query; the index downloads on the
+first search only. Results show their similarity score, and the retrieved set
+stays on screen deliberately: when an answer is wrong you need to see whether
+retrieval or generation failed, and those have different fixes.
+
+**Asset table** — fetches active US equities once on mount (~14k rows),
+substring filter on symbol and name, at most 100 rows. The **Last trade**
+column makes one request per row, triggered by its *Load* button; each symbol
+keeps its own loading / price / failed state. Hover a price for its timestamp,
+hover *failed* for the error.
 
 ## Scripts
 

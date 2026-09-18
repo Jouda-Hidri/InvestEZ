@@ -1,0 +1,44 @@
+.hint {
+  color: #8889;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.link {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-right: 0.75rem;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.matches {
+  list-style: none;
+  padding: 0;
+}
+
+.matches li {
+  position: relative;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid #8884;
+}
+
+/* Score first, so the ranking is readable without reading the names. */
+.score {
+  display: inline-block;
+  width: 3.5rem;
+  color: #8889;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.35;
+}

@@ -4,9 +4,18 @@
   padding: 2rem;
 }
 
+section {
+  margin-bottom: 3rem;
+}
+
 input {
   padding: 0.4rem;
   width: 20rem;
+}
+
+form button {
+  margin-left: 0.5rem;
+  padding: 0.4rem 0.9rem;
 }
 
 table {
