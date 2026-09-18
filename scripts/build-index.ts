@@ -1,5 +1,5 @@
 /**
- * Builds src/rag/asset-index.json — one embedding vector per Alpaca asset.
+ * Builds public/asset-index.json — one embedding vector per Alpaca asset.
  *
  *   npm run build-index                  # full corpus
  *   npm run build-index -- --limit 20    # smoke test, ~200 tokens
@@ -19,7 +19,7 @@ import {
   type AssetIndex,
 } from '../src/rag/index-format.ts'
 
-const OUTPUT = 'src/rag/asset-index.json'
+const OUTPUT = 'public/asset-index.json'
 const MAX_RETRIES = 5
 
 // Voyage's free tier (no payment method on file) allows 3 requests/min and

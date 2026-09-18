@@ -2,8 +2,8 @@
 
 React + TypeScript client for Alpaca (paper trading).
 Current scope: list tradable assets, and load the last trade price for any of them.
-Groundwork for semantic search over the asset list exists as a build script; it is
-not wired into the app yet.
+Semantic search over the asset list exists as a module (`src/rag/`) but no UI
+calls it yet.
 
 ## Setup
 
@@ -15,29 +15,25 @@ npm run dev            # http://localhost:5173
 
 ## How the API calls work
 
-Alpaca returns no CORS headers and requires secret credentials, so the browser
-cannot call it directly. The Vite dev server proxies instead. Two hosts, one set
-of keys:
+None of these APIs send CORS headers, and all need secret credentials, so the
+browser cannot call them directly. The Vite dev server proxies instead — three
+routes, two vendors, and a different auth scheme per vendor:
 
-```
-browser  →  GET /api/trading/v2/assets?status=active&asset_class=us_equity
-proxy    →  GET https://paper-api.alpaca.markets/v2/assets?...
+| Browser path   | Upstream                        | Auth |
+| -------------- | ------------------------------- | ---- |
+| `/api/trading` | `paper-api.alpaca.markets`      | `APCA-API-KEY-ID` + `APCA-API-SECRET-KEY` |
+| `/api/data`    | `data.alpaca.markets`           | same pair |
+| `/api/voyage`  | `api.voyageai.com`              | `Authorization: Bearer` |
 
-browser  →  GET /api/data/v2/stocks/AAPL/trades/latest?feed=iex
-proxy    →  GET https://data.alpaca.markets/v2/stocks/AAPL/trades/latest?feed=iex
-
-both     +  APCA-API-KEY-ID / APCA-API-SECRET-KEY headers
-```
-
-The two headers are Alpaca's documented scheme
-([auth docs](https://docs.alpaca.markets/us/docs/authentication)); paper and live
-credentials are separate and not interchangeable.
+Alpaca's two headers are its
+[documented scheme](https://docs.alpaca.markets/us/docs/authentication); paper
+and live credentials are separate and not interchangeable.
 
 The keys are read by `vite.config.ts` at startup and never reach the bundle.
 They are not prefixed `VITE_`, which is what keeps Vite from exposing them.
 
-`npm run dev` refuses to start if either key is missing. This proxy exists only
-in dev; a production build needs a real backend.
+`npm run dev` refuses to start if any key is missing, naming the ones absent.
+The proxy exists only in dev; a production build needs a real backend.
 
 ## Market data on the free plan
 
@@ -47,33 +43,53 @@ paid plan. Basic is also capped at 200 requests/min and cannot read the most
 recent 15 minutes of data — prices shown here are delayed.
 ([market data docs](https://docs.alpaca.markets/us/docs/getting-started-with-alpaca-market-data))
 
-## Embedding index
+## Semantic search
 
-`npm run build-index` writes `src/rag/asset-index.json`: one 256-dimension
-[Voyage](https://docs.voyageai.com/docs/embeddings) `voyage-4-lite` vector per
-asset, for semantic search ("electric vehicle makers" → TSLA, RIVN) that a
-substring filter cannot do.
+Two halves, deliberately separate.
 
-Indexing is offline and manual; nothing embeds the corpus at runtime. The output
-is gitignored — rebuild it rather than committing it.
+**Indexing — offline, once.** `npm run build-index` embeds each asset as a
+256-dimension [Voyage](https://docs.voyageai.com/docs/embeddings) `voyage-4-lite`
+vector and writes `public/asset-index.json` (3,936 assets, ~50k tokens, 12 MB).
+Corpus is `tradable && fractionable && NASDAQ|NYSE && has listed options` —
+options act as a liquidity proxy. Node reads `.env` via `--env-file` and calls
+both APIs directly; the dev proxy is for the browser and is irrelevant here.
 
 ```sh
 npm run build-index -- --limit 20   # smoke test, ~300 tokens
-npm run build-index                 # all tradable + fractionable assets
+npm run build-index                 # full corpus, ~7 min
 ```
 
-Node reads `.env` via `--env-file` and calls both APIs directly — the dev proxy
-exists for the browser's sake and is irrelevant here.
+The run is paced to Voyage's free tier: 3 requests/min and 10K tokens/min
+without a payment method on file. Batches are large (200) because *requests*,
+not tokens, are the scarce resource, and 429 backoff floors at a full minute.
+
+**Retrieval — per query, in the browser.** `src/rag/retrieve.ts` fetches the
+index once, embeds the query with `input_type: "query"` (the corpus used
+`"document"` — Voyage prepends a different instruction for each), and ranks all
+3,936 vectors by dot product. Dot rather than cosine because Voyage returns
+unit-length vectors, so the denominator is 1. A linear scan over 3,936 × 256 is
+milliseconds; no vector database.
+
+The index lives in `public/` so it is served rather than bundled, and is
+gitignored — rebuild it rather than committing 12 MB of derived data.
+
+**What the corpus can answer.** Each asset is embedded as one string:
+`SYMBOL — Name (EXCHANGE)`. Nothing else is retrievable. "big American banks"
+ranks BAC, JPM and C highly because *Bank* is in their names; "electric vehicle
+makers" puts GM 3rd and Tesla 13th, because "Tesla, Inc. Common Stock" never
+says what Tesla builds. Richer documents, not a better model, is the fix.
 
 ## Files
 
 | File                      | Role                                                       |
 | ------------------------- | ---------------------------------------------------------- |
-| `vite.config.ts`          | Dev proxies to both Alpaca hosts, injects the auth headers  |
+| `vite.config.ts`          | Dev proxies to Alpaca and Voyage, injects the auth headers  |
 | `src/alpaca.ts`           | `Asset` / `Trade` types, `getAssets()`, `getLatestTrade()`  |
 | `src/App.tsx`             | `App` loads + filters assets; `LastTrade` renders one price |
 | `scripts/build-index.ts`  | Fetch → filter → batch-embed → write the index              |
 | `src/rag/index-format.ts` | Index shape + model constants, shared by script and app     |
+| `src/rag/retrieve.ts`     | `loadIndex()`, `embedQuery()`, `search()`                   |
+| `public/asset-index.json` | Generated vectors (gitignored)                              |
 | `.env`                    | Alpaca and Voyage keys (gitignored)                         |
 
 ## Behaviour
