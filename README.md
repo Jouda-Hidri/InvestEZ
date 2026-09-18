@@ -85,6 +85,32 @@ results in both directions:
 Tesla loses to General Motors because "Tesla, Inc. Common Stock" never says what
 Tesla builds. Richer documents, not a better embedding model, is the fix.
 
+## Evaluation
+
+`npm run eval` scores retrieval against 15 hand-written cases in
+`scripts/eval.ts` — queries paired with the symbols they should return, written
+before looking at what the system does.
+
+```
+recall@10: 0.633   MRR: 0.600      # baseline, voyage-4-lite/256, name-only documents
+```
+
+Misses print their true rank (`TSLA@13`, `NVDA@48`), which separates a bad
+ordering from a document that never had the information. Expected symbols
+absent from the corpus are reported apart from retrieval misses, so the build
+filter is never graded as a search failure.
+
+**What the baseline shows:** descriptive names win and brand names lose. Every
+thematic query surfaces ETFs first — `CLOU`, `SKYY` and `WCLD` for cloud
+software, `BUG` for cybersecurity — because a fund's name states its theme
+outright. The companies actually being asked for sit far down the list:
+NVDA@48, MSFT@33, DIS@41, XOM@23. "NVIDIA Corporation" says nothing about
+semiconductors.
+
+Query embeddings cache to `scripts/.eval-cache.json` (gitignored), keyed by
+model and dimension. A cold run is ~5 minutes on the free tier; a warm run is
+instant.
+
 ## Files
 
 | File                      | Role                                                       |
@@ -94,7 +120,9 @@ Tesla builds. Richer documents, not a better embedding model, is the fix.
 | `src/alpaca.ts`              | `Asset` / `Trade` types, `getAssets()`, `getLatestTrade()` |
 | `src/AssetTable.tsx`         | Asset list, substring filter, per-row `LastTrade`          |
 | `scripts/build-index.ts`     | Fetch → filter → batch-embed → write the index             |
+| `scripts/eval.ts`            | Scored cases, `recall@10` and MRR                          |
 | `src/rag/index-format.ts`    | Index shape + model constants, shared by script and app    |
+| `src/rag/rank.ts`            | `dot()` and `rank()` — pure, no I/O, used by app and eval  |
 | `src/rag/retrieve.ts`        | `loadIndex()`, `embedQuery()`, `search()`                  |
 | `src/rag/SemanticSearch.tsx` | Query box, ranked results with scores                      |
 | `public/asset-index.json`    | Generated vectors (gitignored)                             |
@@ -116,4 +144,4 @@ hover *failed* for the error.
 ## Scripts
 
 `npm run dev` · `npm run build` (tsc + vite) · `npm run lint` (oxlint) ·
-`npm run preview` · `npm run build-index`
+`npm run preview` · `npm run build-index` · `npm run eval`

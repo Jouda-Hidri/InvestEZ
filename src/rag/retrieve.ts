@@ -2,22 +2,21 @@
  * The online half of RAG. Loads the index built by `npm run build-index`,
  * embeds one query into the same vector space, and ranks the corpus against it.
  *
- * No vector database: 3,936 vectors × 256 dimensions is a linear scan taking
- * single-digit milliseconds. Reach for a real index when the corpus makes that
- * scan slow, not before.
+ * The scoring itself lives in rank.ts, which has no I/O — this file is the
+ * browser-side plumbing around it.
  */
 import {
   EMBEDDING_DIM,
   EMBEDDING_MODEL,
   type AssetIndex,
-  type IndexedAsset,
-} from './index-format'
+} from './index-format.ts'
+import { rank } from './rank.ts'
 
 // Served from public/, not imported — a 12 MB `import` would land in the JS
 // bundle. This way the browser caches it and the app code stays small.
 const INDEX_URL = '/asset-index.json'
 
-export type Match = { asset: IndexedAsset; score: number }
+export type { Match } from './rank.ts'
 
 let cached: Promise<AssetIndex> | null = null
 
@@ -50,17 +49,6 @@ async function fetchIndex(): Promise<AssetIndex> {
   return index
 }
 
-/**
- * Cosine similarity without the division. Voyage returns unit-length vectors
- * (verified: norm 1.0000), so the denominator is 1 and drops out — leaving a
- * plain dot product. Higher is more similar; the range is -1 to 1.
- */
-function dot(a: number[], b: number[]): number {
-  let sum = 0
-  for (let i = 0; i < a.length; i++) sum += a[i] * b[i]
-  return sum
-}
-
 /** Embeds the query through the dev proxy, which adds the Voyage credentials. */
 export async function embedQuery(text: string, signal?: AbortSignal) {
   const response = await fetch('/api/voyage/v1/embeddings', {
@@ -87,17 +75,10 @@ export async function embedQuery(text: string, signal?: AbortSignal) {
 }
 
 /** Top `k` assets most semantically similar to `query`, best first. */
-export async function search(
-  query: string,
-  k = 8,
-  signal?: AbortSignal,
-): Promise<Match[]> {
+export async function search(query: string, k = 8, signal?: AbortSignal) {
   // Both are network-bound and independent — the index download overlaps with
   // the embedding call rather than following it.
   const [index, vector] = await Promise.all([loadIndex(), embedQuery(query, signal)])
 
-  return index.items
-    .map((asset) => ({ asset, score: dot(vector, asset.vector) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k)
+  return rank(vector, index.items, k)
 }
