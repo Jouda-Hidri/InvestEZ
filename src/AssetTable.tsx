@@ -59,8 +59,9 @@ export function AssetTable() {
     <section>
       <h2>All assets</h2>
       <p className="hint">
-        Substring match on symbol and name — the opposite of the search above,
-        and the reason "video games" finds nothing here.
+        Substring match on symbol and name — the opposite of the search above.
+        "video games" finds the two ETFs with those words in their titles, and
+        misses Take-Two, Unity and Roblox entirely.
       </p>
 
       <input

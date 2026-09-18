@@ -73,10 +73,17 @@ The index lives in `public/` so it is served rather than bundled, and is
 gitignored — rebuild it rather than committing 12 MB of derived data.
 
 **What the corpus can answer.** Each asset is embedded as one string:
-`SYMBOL — Name (EXCHANGE)`. Nothing else is retrievable. "big American banks"
-ranks BAC, JPM and C highly because *Bank* is in their names; "electric vehicle
-makers" puts GM 3rd and Tesla 13th, because "Tesla, Inc. Common Stock" never
-says what Tesla builds. Richer documents, not a better model, is the fix.
+`SYMBOL — Name (EXCHANGE)`. Nothing else is retrievable, and that bounds the
+results in both directions:
+
+| Query | Semantic search | Substring filter |
+| --- | --- | --- |
+| companies that make video games | TTWO, Unity, Roblox | 2 ETFs with *Video Games* in their titles |
+| big American banks | BAC, JPM, C — but partly because *Bank* is in the name | 0 |
+| electric vehicle makers | GM 3rd, **Tesla 13th** | 0 |
+
+Tesla loses to General Motors because "Tesla, Inc. Common Stock" never says what
+Tesla builds. Richer documents, not a better embedding model, is the fix.
 
 ## Files
 

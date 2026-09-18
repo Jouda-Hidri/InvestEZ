@@ -2,6 +2,8 @@
   max-width: 60rem;
   margin: 0 auto;
   padding: 2rem;
+  /* The Vite template centres everything; tables and score bars need left. */
+  text-align: left;
 }
 
 section {
