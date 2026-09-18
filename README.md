@@ -113,8 +113,8 @@ instant.
 
 ## Files
 
-| File                      | Role                                                       |
-| ------------------------- | ---------------------------------------------------------- |
+| File                         | Role                                                      |
+| ---------------------------- | --------------------------------------------------------- |
 | `vite.config.ts`             | Dev proxies to Alpaca and Voyage, injects the auth headers |
 | `src/App.tsx`                | Shell: two sections, each owning its own fetching          |
 | `src/alpaca.ts`              | `Asset` / `Trade` types, `getAssets()`, `getLatestTrade()` |
