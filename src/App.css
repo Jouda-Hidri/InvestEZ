@@ -1,0 +1,22 @@
+#root {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+input {
+  padding: 0.4rem;
+  width: 20rem;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+}
+
+th,
+td {
+  border-bottom: 1px solid #8884;
+  padding: 0.35rem 0.5rem;
+}
