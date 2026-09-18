@@ -9,7 +9,9 @@ async function get<T>(url: string, signal?: AbortSignal): Promise<T> {
   if (!response.ok) {
     throw new Error(`Alpaca ${response.status}: ${await response.text()}`)
   }
-  return response.json()
+  // `.json()` is typed `unknown` — the cast is the point where we assert the
+  // response matches T. Nothing validates it at runtime.
+  return response.json() as Promise<T>
 }
 
 // One asset as returned by GET /v2/assets.
@@ -23,6 +25,7 @@ export type Asset = {
   status: 'active' | 'inactive'
   tradable: boolean
   fractionable: boolean
+  attributes?: string[] // e.g. 'has_options', 'fractional_eh_enabled'
 }
 
 export type AssetQuery = {

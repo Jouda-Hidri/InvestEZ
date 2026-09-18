@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build-index": "node --env-file=.env scripts/build-index.ts"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^4.0.2",
