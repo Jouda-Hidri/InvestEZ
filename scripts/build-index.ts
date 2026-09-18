@@ -9,17 +9,19 @@
  * the corpus again. Node has no same-origin policy, so unlike the browser this
  * calls both APIs directly instead of going through the Vite proxy.
  */
-import { writeFile, mkdir, stat } from 'node:fs/promises'
+import { readFile, writeFile, mkdir, stat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { Asset } from '../src/alpaca.ts'
 import {
   EMBEDDING_DIM,
   EMBEDDING_MODEL,
+  inCorpus,
   toDocument,
   type AssetIndex,
 } from '../src/rag/index-format.ts'
 
 const OUTPUT = 'public/asset-index.json'
+const DESCRIPTIONS = 'scripts/descriptions.json'
 const MAX_RETRIES = 5
 
 // Voyage's free tier (no payment method on file) allows 3 requests/min and
@@ -116,25 +118,24 @@ const limit = limitFlag === -1 ? Infinity : Number(process.argv[limitFlag + 1])
 const assets = await fetchAssets()
 console.log(`${assets.length} active US equities`)
 
-/**
- * Which assets end up in the index. Every asset dropped here is one the app can
- * never retrieve, so this is a recall decision as much as a file-size one.
- * Listed options are a liquidity proxy: it keeps the household names and drops
- * most shells and thin ETFs.
- */
-function inCorpus(asset: Asset): boolean {
-  return (
-    asset.tradable &&
-    asset.fractionable &&
-    (asset.exchange === 'NASDAQ' || asset.exchange === 'NYSE') &&
-    (asset.attributes?.includes('has_options') ?? false)
-  )
-}
+// Optional: run `npm run enrich` first to add an industry line per company.
+// Absent, the index still builds — on names alone, as the first version did.
+const descriptions: Record<string, string> = await readFile(DESCRIPTIONS, 'utf8')
+  .then((text) => JSON.parse(text) as Record<string, string>)
+  .catch(() => ({}))
+
+const enriched = Object.keys(descriptions).length > 0
+const document = (asset: Asset) => toDocument(asset, descriptions[asset.symbol])
 
 const corpus = assets.filter(inCorpus).slice(0, limit)
 const batches = Math.ceil(corpus.length / BATCH_SIZE)
 console.log(`${corpus.length} in corpus — embedding those`)
-console.log(`e.g. ${toDocument(corpus[0])}`)
+console.log(
+  enriched
+    ? `${Object.keys(descriptions).length} have an industry line`
+    : 'no descriptions found — names only',
+)
+console.log(`e.g. ${document(corpus[0])}`)
 console.log(`${batches} batches at ${REQUESTS_PER_MINUTE}/min — about ${Math.ceil(batches / REQUESTS_PER_MINUTE)} min\n`)
 
 const vectors: number[][] = []
@@ -142,7 +143,7 @@ let tokens = 0
 
 for (let start = 0; start < corpus.length; start += BATCH_SIZE) {
   const batch = corpus.slice(start, start + BATCH_SIZE)
-  const result = await embedBatch(batch.map(toDocument))
+  const result = await embedBatch(batch.map(document))
 
   vectors.push(...result.vectors)
   tokens += result.tokens
@@ -155,6 +156,7 @@ if (wrong) throw new Error(`Expected ${EMBEDDING_DIM} dims, got ${wrong.length}`
 const index: AssetIndex = {
   model: EMBEDDING_MODEL,
   dim: EMBEDDING_DIM,
+  enriched,
   items: corpus.map((asset, i) => ({
     symbol: asset.symbol,
     name: asset.name,

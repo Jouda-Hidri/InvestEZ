@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "build-index": "node --env-file=.env scripts/build-index.ts",
-    "eval": "node --env-file=.env scripts/eval.ts"
+    "eval": "node --env-file=.env scripts/eval.ts",
+    "enrich": "node --env-file=.env scripts/enrich.ts"
   },
   "dependencies": {
     "@alpacahq/alpaca-trade-api": "^4.0.2",
